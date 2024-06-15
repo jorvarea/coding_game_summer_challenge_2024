@@ -16,10 +16,11 @@ class Minigame(ABC):
         self.gpu = ""
         self.reg: list[int] = []
         self.weights : dict[str, float] = {}
+        self.turn = 1
 
     @abstractmethod
-    def advantage(self) -> float:
-        """Calculate the advantage against the other players"""
+    def relative_advantage(self) -> float:
+        """Calculate the relative advantage against the other players"""
         pass
 
     @abstractmethod
@@ -31,6 +32,10 @@ class Minigame(ABC):
     def obtain_game_specific_parameters(self) -> None:
         pass
 
+    def update_turn_count(self) -> None:
+        """Updates the turn count"""
+        self.turn += 1
+
     def game_loop(self) -> None:
         """Reads all the inputs for the game and returns the weighted moves"""
         inputs = input().split()
@@ -38,6 +43,7 @@ class Minigame(ABC):
         self.reg = [int(x) for x in inputs[1:]]
         self.obtain_game_specific_parameters()
         self.calculate_weights()
+        self.update_turn_count()
         if DEBUG:
             print(f"Gpu: {self.gpu}, Reg: {self.reg}, Weights: {self.weights}", file=sys.stderr, flush=True)
 
@@ -63,11 +69,10 @@ class HurdleGame(Minigame):
         distance2win = max(self.reg[i] for i in range(2)) - self.current_position
         return 1 / (1 + distance2win)
     
-    def advantage(self) -> float:
-        """Calculate the advantage against the other players"""
+    def relative_advantage(self) -> float:
+        """Calculate the relative_advantage against the other players"""
         advantage = self.current_position - max(self.reg[i] for i in range(2) if i != self.player_idx)
-        average_steps_per_turn = 2
-        return advantage / average_steps_per_turn
+        return advantage / max(self.reg[i] for i in range(2))
 
     def calculate_spaces2obs(self) -> int:
         """Calculates the spaces until the next obstacle"""
@@ -135,13 +140,12 @@ class Archery(Minigame):
         distance2win = min(distances2center) - self.distance2center(self.pos)
         return 1 / (1 + distance2win)
     
-    def advantage(self) -> float:
-        """Calculate the advantage against the other players"""
+    def relative_advantage(self) -> float:
+        """Calculate the relative_advantage against the other players"""
         player_positions = [Coordinates(self.reg[2 * i], self.reg[2 * i + 1]) for i in range(2)]
         distances2center = [self.distance2center(pos) for i, pos in enumerate(player_positions) if i != self.player_idx]
         advantage = min(distances2center) - self.distance2center(self.pos)
-        average_wind_power = 4
-        return advantage / average_wind_power
+        return advantage / min(self.distance2center(pos) for pos in player_positions)
 
     def calculate_weights(self) -> None:
         """Calculates the weigthed moves"""
@@ -163,6 +167,33 @@ class Archery(Minigame):
 
 #----------------------------------------------------------------------------------------
 
+class Diving(Minigame):
+    def __init__(self, *args, **kwargs) -> None:
+        super().__init__(*args, **kwargs)
+
+    def obtain_game_specific_parameters(self) -> None:
+        self.points = self.reg[self.player_idx]
+        self.combo = self.reg[self.player_idx + 3]
+
+    def calculate_weights(self) -> None:
+        self.weights = {}
+        mapping = { "UP": "U", "DOWN": "D", "LEFT": "L", "RIGHT": "R"}
+        for move in MOVES.values():
+            if mapping[move] == self.gpu[0]:
+                self.weights[move] = self.combo + 1
+            else:
+                self.weights[move] = - self.combo
+
+    def normalize_weights(self) -> None:
+        self.weights = {move: (weight + self.combo) / (max(self.weights.values()) + self.combo) for move, weight in self.weights.items()}
+
+    def relative_advantage(self) -> float:
+        points = [self.reg[i] for i in range(2) if i != self.player_idx]
+        relative_advantage = self.reg[self.player_idx] - max(points)
+        return relative_advantage / max(self.reg[i] for i in range(2))
+
+#----------------------------------------------------------------------------------------
+
 class DummyMinigame(Minigame):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
@@ -175,7 +206,7 @@ class DummyMinigame(Minigame):
         """Dummy implementation always returns 0"""
         return 0.0
     
-    def advantage(self) -> float:
+    def relative_advantage(self) -> float:
         return 0.0
 
     def calculate_weights(self) -> None:
@@ -199,7 +230,7 @@ def decide_move(games: list[Minigame], games2win: set[int]) -> str:
             if move not in total_weights:
                 total_weights[move] = 0.0
             if i in games2win:
-                total_weights[move] += game.weights[move] * 1 / (1 + 2 * abs(game.advantage()))
+                total_weights[move] += game.weights[move] * 1 / (1 + 2 * abs(game.relative_advantage()))
             else:
                 total_weights[move] += 0
     if DEBUG:
@@ -209,7 +240,7 @@ def decide_move(games: list[Minigame], games2win: set[int]) -> str:
 def decide_games2win(games: list[Minigame]) -> set[int]:
     evals = []
     for i, game in enumerate(games):
-        game_eval = game.advantage()
+        game_eval = game.relative_advantage()
         evals.append((game_eval, i))
     evals = sorted(evals)
     return {evals[-1][1], evals[-2][1]}
@@ -219,7 +250,7 @@ def decide_games2win(games: list[Minigame]) -> set[int]:
 def main() -> None:
     player_idx, nb_games = read_game_info()
     games = [HurdleGame(player_idx, nb_games), Archery(player_idx, nb_games), 
-             DummyMinigame(player_idx, nb_games), DummyMinigame(player_idx, nb_games)]
+             DummyMinigame(player_idx, nb_games), Diving(player_idx, nb_games)]
     turn = 1
     while True:
         for _ in range(3):
@@ -229,7 +260,7 @@ def main() -> None:
         # else:
         #     games2win = decide_games2win(games)
         # print(decide_move(games, games2win))
-        print(decide_move(games, {0, 1}))
+        print(decide_move(games, {4}))
         turn += 1
 
 #----------------------------------------------------------------------------------------
