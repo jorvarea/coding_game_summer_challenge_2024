@@ -267,7 +267,7 @@ def main() -> None:
     while True:
         for _ in range(3):
             score_info = input()
-        print(decide_move(games, {2}))
+        print(decide_move(games, {0, 1, 3}))
         turn += 1
 
 #----------------------------------------------------------------------------------------
