@@ -24,7 +24,11 @@ class Minigame(ABC):
         self.gpu = inputs[0]
         self.reg = [int(x) for x in inputs[1:]]
         self.obtain_game_specific_parameters()
-        self.calculate_weights()
+        if self.gpu != "GAME_OVER":
+            self.calculate_weights()
+            self.normalize_weights()
+        else:
+            self.weights = { "UP": 0, "LEFT": 0, "DOWN": 0, "RIGHT": 0 }
         self.update_turn_count()
         if DEBUG:
             print(f"Gpu: {self.gpu}, Reg: {self.reg}, Weights: {self.weights}", file=sys.stderr, flush=True)
@@ -87,7 +91,7 @@ class HurdleGame(Minigame):
 
     def calculate_weights(self) -> None:
         """Calculates the weigthed moves"""
-        if self.gpu != "GAME_OVER" and self.stun_timer == 0:
+        if self.stun_timer == 0:
             spaces2obs = self.calculate_spaces2obs()
             optimal_steps = min(spaces2obs, 3)
             optimal_move = MOVES[optimal_steps]
@@ -101,7 +105,6 @@ class HurdleGame(Minigame):
                 self.weights = { "UP": -8, "LEFT": 1, "DOWN": -8, "RIGHT": -8 }
         else:
             self.weights = { "UP": 0, "LEFT": 0, "DOWN": 0, "RIGHT": 0 }
-        self.normalize_weights()
 
     def normalize_weights(self) -> None:
         """Make it so the weights are in the interval [0, 1] so we can compare them between games"""
@@ -139,17 +142,13 @@ class Archery(Minigame):
 
     def calculate_weights(self) -> None:
         """Calculates the weigthed moves"""
-        if self.gpu != "GAME_OVER":
-            potential_moves = {
-                "UP": Coordinates(self.pos.x, self.pos.y - self.wind_strength),
-                "DOWN": Coordinates(self.pos.x, self.pos.y + self.wind_strength),
-                "LEFT": Coordinates(self.pos.x - self.wind_strength, self.pos.y),
-                "RIGHT": Coordinates(self.pos.x + self.wind_strength, self.pos.y)
-            }
-            self.weights = {move: self.distance2center(new_pos) for move, new_pos in potential_moves.items()}
-            self.normalize_weights()
-        else:
-            self.weights = { "UP": 0, "LEFT": 0, "DOWN": 0, "RIGHT": 0 }
+        potential_moves = {
+            "UP": Coordinates(self.pos.x, self.pos.y - self.wind_strength),
+            "DOWN": Coordinates(self.pos.x, self.pos.y + self.wind_strength),
+            "LEFT": Coordinates(self.pos.x - self.wind_strength, self.pos.y),
+            "RIGHT": Coordinates(self.pos.x + self.wind_strength, self.pos.y)
+        }
+        self.weights = {move: self.distance2center(new_pos) for move, new_pos in potential_moves.items()}
 
     def normalize_weights(self) -> None:
         """Make it so the weights are in the interval [0, 1] so we can compare them between games"""
