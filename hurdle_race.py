@@ -18,24 +18,6 @@ class Minigame(ABC):
         self.weights : dict[str, float] = {}
         self.turn = 1
 
-    @abstractmethod
-    def relative_advantage(self) -> float:
-        """Calculate the relative advantage against the other players"""
-        pass
-
-    @abstractmethod
-    def calculate_weights(self) -> None:
-        """Method for calculating the weights of each move"""
-        pass
-
-    @abstractmethod
-    def obtain_game_specific_parameters(self) -> None:
-        pass
-
-    def update_turn_count(self) -> None:
-        """Updates the turn count"""
-        self.turn += 1
-
     def game_loop(self) -> None:
         """Reads all the inputs for the game and returns the weighted moves"""
         inputs = input().split()
@@ -46,6 +28,29 @@ class Minigame(ABC):
         self.update_turn_count()
         if DEBUG:
             print(f"Gpu: {self.gpu}, Reg: {self.reg}, Weights: {self.weights}", file=sys.stderr, flush=True)
+
+    def update_turn_count(self) -> None:
+        """Updates the turn count"""
+        self.turn += 1
+
+    @abstractmethod
+    def obtain_game_specific_parameters(self) -> None:
+        pass
+
+    @abstractmethod
+    def calculate_weights(self) -> None:
+        """Method for calculating the weights of each move"""
+        pass
+    
+    @abstractmethod
+    def normalize_weights(self) -> None:
+        """Make it so the weights are in the interval [0, 1] so we can compare them between games"""
+        pass
+
+    @abstractmethod
+    def relative_advantage(self) -> float:
+        """Calculate the relative advantage against the other players"""
+        pass
 
 #----------------------------------------------------------------------------------------
 
@@ -63,16 +68,6 @@ class HurdleGame(Minigame):
     def count_obstacles(self) -> int:
         """Count the number of obstacles in the race track"""
         return self.gpu.count('#')
-    
-    def close2winning(self) -> float:
-        """Check how close the player is to winning"""
-        distance2win = max(self.reg[i] for i in range(2)) - self.current_position
-        return 1 / (1 + distance2win)
-    
-    def relative_advantage(self) -> float:
-        """Calculate the relative_advantage against the other players"""
-        advantage = self.current_position - max(self.reg[i] for i in range(2) if i != self.player_idx)
-        return advantage / max(self.reg[i] for i in range(2))
 
     def calculate_spaces2obs(self) -> int:
         """Calculates the spaces until the next obstacle"""
@@ -89,10 +84,6 @@ class HurdleGame(Minigame):
             else:
                 result = len(self.gpu) - self.current_position
         return result
-
-    def normalize_weights(self) -> None:
-        """Make it so the weights are in the interval [0, 1] so we can compare them between games"""
-        self.weights = {move : (weight + 8) / 11 for move, weight in self.weights.items()}
 
     def calculate_weights(self) -> None:
         """Calculates the weigthed moves"""
@@ -111,6 +102,19 @@ class HurdleGame(Minigame):
         else:
             self.weights = { "UP": 0, "LEFT": 0, "DOWN": 0, "RIGHT": 0 }
         self.normalize_weights()
+
+    def normalize_weights(self) -> None:
+        """Make it so the weights are in the interval [0, 1] so we can compare them between games"""
+        self.weights = {move : (weight + 8) / 11 for move, weight in self.weights.items()}
+
+    def relative_advantage(self) -> float:
+        """Calculate the relative_advantage against the other players"""
+        advantage = self.current_position - max(self.reg[i] for i in range(2) if i != self.player_idx)
+        try:
+            relative_advantage = advantage / max(self.reg[i] for i in range(2))
+        except ZeroDivisionError:
+            relative_advantage = advantage
+        return relative_advantage
 
 #----------------------------------------------------------------------------------------
 
@@ -133,20 +137,6 @@ class Archery(Minigame):
         """Calculate the distance of a position to the origin of coordinates"""
         return m.sqrt(pos.x**2 + pos.y**2)
 
-    def close2winning(self) -> float:
-        """Check how close the player is to winning"""
-        player_positions = [Coordinates(self.reg[2 * i], self.reg[2 * i + 1]) for i in range(2)]
-        distances2center = [self.distance2center(pos) for pos in player_positions]
-        distance2win = min(distances2center) - self.distance2center(self.pos)
-        return 1 / (1 + distance2win)
-    
-    def relative_advantage(self) -> float:
-        """Calculate the relative_advantage against the other players"""
-        player_positions = [Coordinates(self.reg[2 * i], self.reg[2 * i + 1]) for i in range(2)]
-        distances2center = [self.distance2center(pos) for i, pos in enumerate(player_positions) if i != self.player_idx]
-        advantage = min(distances2center) - self.distance2center(self.pos)
-        return advantage / min(self.distance2center(pos) for pos in player_positions)
-
     def calculate_weights(self) -> None:
         """Calculates the weigthed moves"""
         if self.gpu != "GAME_OVER":
@@ -164,6 +154,17 @@ class Archery(Minigame):
     def normalize_weights(self) -> None:
         """Make it so the weights are in the interval [0, 1] so we can compare them between games"""
         self.weights = {move: (1 / (1 + weight)) for move, weight in self.weights.items()}
+
+    def relative_advantage(self) -> float:
+        """Calculate the relative_advantage against the other players"""
+        player_positions = [Coordinates(self.reg[2 * i], self.reg[2 * i + 1]) for i in range(2)]
+        distances2center = [self.distance2center(pos) for i, pos in enumerate(player_positions) if i != self.player_idx]
+        advantage = min(distances2center) - self.distance2center(self.pos)
+        try:
+            relative_advantage = advantage / min(self.distance2center(pos) for pos in player_positions)
+        except ZeroDivisionError:
+            relative_advantage = advantage
+        return relative_advantage
 
 #----------------------------------------------------------------------------------------
 
@@ -189,8 +190,12 @@ class Diving(Minigame):
 
     def relative_advantage(self) -> float:
         points = [self.reg[i] for i in range(2) if i != self.player_idx]
-        relative_advantage = self.reg[self.player_idx] - max(points)
-        return relative_advantage / max(self.reg[i] for i in range(2))
+        advantage = self.reg[self.player_idx] - max(points)
+        try:
+            relative_advantage = advantage /  max(self.reg[i] for i in range(2))
+        except ZeroDivisionError:
+            relative_advantage = 0
+        return relative_advantage
 
 #----------------------------------------------------------------------------------------
 
@@ -230,7 +235,7 @@ def decide_move(games: list[Minigame], games2win: set[int]) -> str:
             if move not in total_weights:
                 total_weights[move] = 0.0
             if i in games2win:
-                total_weights[move] += game.weights[move] * 1 / (1 + 2 * abs(game.relative_advantage()))
+                total_weights[move] += game.weights[move] * 1 / (1 + abs(game.relative_advantage()))
             else:
                 total_weights[move] += 0
     if DEBUG:
@@ -260,7 +265,7 @@ def main() -> None:
         # else:
         #     games2win = decide_games2win(games)
         # print(decide_move(games, games2win))
-        print(decide_move(games, {4}))
+        print(decide_move(games, {3}))
         turn += 1
 
 #----------------------------------------------------------------------------------------
