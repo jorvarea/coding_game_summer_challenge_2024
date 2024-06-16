@@ -4,6 +4,7 @@ from abc import ABC, abstractmethod
 from typing import NamedTuple
 
 MOVES = {0: 'UP', 1: 'LEFT', 2: 'DOWN', 3: 'RIGHT'}
+MAPPING = { "UP": "U", "DOWN": "D", "LEFT": "L", "RIGHT": "R"}
 DEBUG = True
 
 #----------------------------------------------------------------------------------------
@@ -65,7 +66,6 @@ class HurdleGame(Minigame):
         super().__init__(*args, **kwargs)
 
     def obtain_game_specific_parameters(self) -> None:
-        """Calculate specific variables relatives to the game"""
         self.current_position = self.reg[self.player_idx]
         self.stun_timer = self.reg[3 + self.player_idx]
 
@@ -90,7 +90,6 @@ class HurdleGame(Minigame):
         return result
 
     def calculate_weights(self) -> None:
-        """Calculates the weigthed moves"""
         if self.stun_timer == 0:
             spaces2obs = self.calculate_spaces2obs()
             optimal_steps = min(spaces2obs, 3)
@@ -107,11 +106,9 @@ class HurdleGame(Minigame):
             self.weights = { "UP": 0, "LEFT": 0, "DOWN": 0, "RIGHT": 0 }
 
     def normalize_weights(self) -> None:
-        """Make it so the weights are in the interval [0, 1] so we can compare them between games"""
         self.weights = {move : (weight + 8) / 11 for move, weight in self.weights.items()}
 
     def relative_advantage(self) -> float:
-        """Calculate the relative_advantage against the other players"""
         advantage = self.current_position - max(self.reg[i] for i in range(2) if i != self.player_idx)
         try:
             relative_advantage = advantage / max(self.reg[i] for i in range(2))
@@ -131,7 +128,6 @@ class Archery(Minigame):
         super().__init__(*args, **kwargs)
 
     def obtain_game_specific_parameters(self) -> None:
-        """Calculate specific variables relatives to the game"""
         self.pos = Coordinates(self.reg[2 * self.player_idx], self.reg[2 * self.player_idx + 1])
         if self.gpu != "GAME_OVER":
             self.wind_strength = int(self.gpu[0])
@@ -141,7 +137,6 @@ class Archery(Minigame):
         return m.sqrt(pos.x**2 + pos.y**2)
 
     def calculate_weights(self) -> None:
-        """Calculates the weigthed moves"""
         potential_moves = {
             "UP": Coordinates(self.pos.x, self.pos.y - self.wind_strength),
             "DOWN": Coordinates(self.pos.x, self.pos.y + self.wind_strength),
@@ -151,11 +146,9 @@ class Archery(Minigame):
         self.weights = {move: self.distance2center(new_pos) for move, new_pos in potential_moves.items()}
 
     def normalize_weights(self) -> None:
-        """Make it so the weights are in the interval [0, 1] so we can compare them between games"""
         self.weights = {move: (1 / (1 + weight)) for move, weight in self.weights.items()}
 
     def relative_advantage(self) -> float:
-        """Calculate the relative_advantage against the other players"""
         player_positions = [Coordinates(self.reg[2 * i], self.reg[2 * i + 1]) for i in range(2)]
         distances2center = [self.distance2center(pos) for i, pos in enumerate(player_positions) if i != self.player_idx]
         advantage = min(distances2center) - self.distance2center(self.pos)
@@ -177,9 +170,8 @@ class Diving(Minigame):
 
     def calculate_weights(self) -> None:
         self.weights = {}
-        mapping = { "UP": "U", "DOWN": "D", "LEFT": "L", "RIGHT": "R"}
         for move in MOVES.values():
-            if mapping[move] == self.gpu[0]:
+            if MAPPING[move] == self.gpu[0]:
                 self.weights[move] = self.combo + 1
             else:
                 self.weights[move] = - self.combo
@@ -198,23 +190,45 @@ class Diving(Minigame):
 
 #----------------------------------------------------------------------------------------
 
-class DummyMinigame(Minigame):
+class RollerSpeedSkating(Minigame):
     def __init__(self, *args, **kwargs) -> None:
         super().__init__(*args, **kwargs)
 
     def obtain_game_specific_parameters(self) -> None:
-        """Dummy implementation of obtaining game-specific parameters"""
-        pass
-
-    def normalize_weights(self) -> None:
-        pass
-    
-    def relative_advantage(self) -> float:
-        return 0.0
+        self.risk = self.reg[self.player_idx + 3]
+        self.space_travelled = self.reg[self.player_idx]
 
     def calculate_weights(self) -> None:
-        """Dummy implementation sets all weights to 0"""
-        self.weights = { "UP": 0.0, "LEFT": 0.0, "DOWN": 0.0, "RIGHT": 0.0 }
+        if self.risk >= 0:
+            for move in MOVES.values():
+                index = self.gpu.find(MAPPING[move])
+                stun_penalty = 4
+                risk_limit = 5
+                if index == 0:
+                    self.weights[move] = 1 - stun_penalty * min((self.risk - 1), 0) / risk_limit
+                elif index == 1:
+                    self.weights[move] = 2 - stun_penalty * self.risk / risk_limit
+                elif index == 2:
+                    self.weights[move] = 2 - stun_penalty * max((self.risk + 1), risk_limit) / risk_limit  
+                else:
+                    self.weights[move] = 3 - stun_penalty * max(self.risk + 2, risk_limit) / risk_limit
+        else:
+            self.weights = { "UP": 0, "LEFT": 0, "DOWN": 0, "RIGHT": 0 }
+
+    def normalize_weights(self) -> None:
+        min_value = min(self.weights.values())
+        max_value = max(self.weights.values())
+        range_weights = max_value - min_value
+        self.weights = {move: (weight - min_value) / range_weights for move, weight in self.weights.items()}
+    
+    def relative_advantage(self) -> float:
+        spaces_travelled = [self.reg[i] for i in range(2) if i != self.player_idx]
+        advantage = self.space_travelled - max(spaces_travelled)
+        try:
+            relative_advantage = advantage /  max(self.reg[i] for i in range(2))
+        except ZeroDivisionError:
+            relative_advantage = 0
+        return relative_advantage
 
 #----------------------------------------------------------------------------------------
 
@@ -247,12 +261,12 @@ def decide_move(games: list[Minigame], games2win: set[int]) -> str:
 def main() -> None:
     player_idx, nb_games = read_game_info()
     games = [HurdleGame(player_idx, nb_games), Archery(player_idx, nb_games), 
-             DummyMinigame(player_idx, nb_games), Diving(player_idx, nb_games)]
+             RollerSpeedSkating(player_idx, nb_games), Diving(player_idx, nb_games)]
     turn = 1
     while True:
         for _ in range(3):
             score_info = input()
-        print(decide_move(games, {0, 1, 3}))
+        print(decide_move(games, {2}))
         turn += 1
 
 #----------------------------------------------------------------------------------------
