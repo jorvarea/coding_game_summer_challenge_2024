@@ -238,8 +238,6 @@ def decide_move(games: list[Minigame], games2win: set[int]) -> str:
                     total_weights[move] += game.weights[move] * 1 / (1 + abs(advantage))
                 else:
                     total_weights[move] += game.weights[move] * 1 / (1 + m.sqrt(abs(advantage)))
-            else:
-                total_weights[move] += 0
     if DEBUG:
         print(f"Total weights: {total_weights}", file=sys.stderr, flush=True)
     return max(total_weights, key=lambda move: total_weights[move])
