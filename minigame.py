@@ -244,14 +244,6 @@ def decide_move(games: list[Minigame], games2win: set[int]) -> str:
         print(f"Total weights: {total_weights}", file=sys.stderr, flush=True)
     return max(total_weights, key=lambda move: total_weights[move])
 
-def decide_games2win(games: list[Minigame]) -> set[int]:
-    evals = []
-    for i, game in enumerate(games):
-        game_eval = game.relative_advantage()
-        evals.append((game_eval, i))
-    evals = sorted(evals)
-    return {evals[-1][1], evals[-2][1]}
-
 #----------------------------------------------------------------------------------------
 
 def main() -> None:
@@ -262,11 +254,6 @@ def main() -> None:
     while True:
         for _ in range(3):
             score_info = input()
-        # if turn == 1:
-        #     games2win = {i for i in range(nb_games)}
-        # else:
-        #     games2win = decide_games2win(games)
-        # print(decide_move(games, games2win))
         print(decide_move(games, {0, 1, 3}))
         turn += 1
 
