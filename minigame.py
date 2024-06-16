@@ -207,9 +207,8 @@ class DummyMinigame(Minigame):
         """Dummy implementation of obtaining game-specific parameters"""
         pass
 
-    def close2winning(self) -> float:
-        """Dummy implementation always returns 0"""
-        return 0.0
+    def normalize_weights(self) -> None:
+        pass
     
     def relative_advantage(self) -> float:
         return 0.0
@@ -265,7 +264,7 @@ def main() -> None:
         # else:
         #     games2win = decide_games2win(games)
         # print(decide_move(games, games2win))
-        print(decide_move(games, {3}))
+        print(decide_move(games, {0, 3}))
         turn += 1
 
 #----------------------------------------------------------------------------------------
