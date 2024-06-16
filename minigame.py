@@ -233,7 +233,11 @@ def decide_move(games: list[Minigame], games2win: set[int]) -> str:
             if move not in total_weights:
                 total_weights[move] = 0.0
             if i in games2win:
-                total_weights[move] += game.weights[move] * 1 / (1 + abs(game.relative_advantage()))
+                advantage = game.relative_advantage()
+                if advantage >= 0:
+                    total_weights[move] += game.weights[move] * 1 / (1 + abs(advantage))
+                else:
+                    total_weights[move] += game.weights[move] * 1 / (1 + m.sqrt(abs(advantage)))
             else:
                 total_weights[move] += 0
     if DEBUG:
@@ -263,7 +267,7 @@ def main() -> None:
         # else:
         #     games2win = decide_games2win(games)
         # print(decide_move(games, games2win))
-        print(decide_move(games, {0, 3}))
+        print(decide_move(games, {0, 1, 3}))
         turn += 1
 
 #----------------------------------------------------------------------------------------
