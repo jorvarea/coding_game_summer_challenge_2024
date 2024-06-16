@@ -202,7 +202,7 @@ class RollerSpeedSkating(Minigame):
         if self.risk >= 0:
             for move in MOVES.values():
                 index = self.gpu.find(MAPPING[move])
-                stun_penalty = 4
+                stun_penalty = 2
                 risk_limit = 5
                 if index == 0:
                     self.weights[move] = 1 - stun_penalty * min((self.risk - 1), 0) / risk_limit
@@ -219,7 +219,8 @@ class RollerSpeedSkating(Minigame):
         min_value = min(self.weights.values())
         max_value = max(self.weights.values())
         range_weights = max_value - min_value
-        self.weights = {move: (weight - min_value) / range_weights for move, weight in self.weights.items()}
+        if range_weights != 0:
+            self.weights = {move: (weight - min_value) / range_weights for move, weight in self.weights.items()}
     
     def relative_advantage(self) -> float:
         spaces_travelled = [self.reg[i] for i in range(2) if i != self.player_idx]
