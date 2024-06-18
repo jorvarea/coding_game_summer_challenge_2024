@@ -6,7 +6,7 @@ from typing import NamedTuple
 MOVES = {0: 'UP', 1: 'LEFT', 2: 'DOWN', 3: 'RIGHT'}
 MAPPING = { "UP": "U", "DOWN": "D", "LEFT": "L", "RIGHT": "R" }
 MAX_ADVANTAGE = { "Hurdle": 30, "Archery": 40, "Diving": 120, "RollerSpeedSkating": 1 }
-GAME_MODIFIERS = {"Hurdle": 2, "Archery": 1, "Diving": 0.5, "RollerSpeedSkating": 1 }
+GAME_MODIFIERS = {"Hurdle": 1, "Archery": 1, "Diving": 0.9, "RollerSpeedSkating": 1 }
 DEBUG = True
 
 #----------------------------------------------------------------------------------------
