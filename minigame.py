@@ -108,18 +108,18 @@ class HurdleGame(Minigame):
             optimal_steps = min(spaces2obs, 3)
             optimal_move = MOVES[optimal_steps]
             if optimal_move == "DOWN":
-                self.weights = { "UP": 2, "LEFT": 1, "DOWN": 2, "RIGHT": -8 }
+                self.weights = { "UP": 2, "LEFT": 1, "DOWN": 2, "RIGHT": -6 }
             elif optimal_move == "UP":
-                self.weights = { "UP": 2, "LEFT": -8, "DOWN": -8, "RIGHT": -8 }
+                self.weights = { "UP": 2, "LEFT": -6, "DOWN": -6, "RIGHT": -6 }
             elif optimal_move == "RIGHT":
                 self.weights = { "UP": 2, "LEFT": 1, "DOWN": 2, "RIGHT": 3 }
             elif optimal_move == "LEFT":
-                self.weights = { "UP": -8, "LEFT": 1, "DOWN": -8, "RIGHT": -8 }
+                self.weights = { "UP": -6, "LEFT": 1, "DOWN": -6, "RIGHT": -6 }
         else:
             self.weights = { "UP": 0, "LEFT": 0, "DOWN": 0, "RIGHT": 0 }
 
     def normalize_weights(self) -> None:
-        self.weights = {move : (weight + 8) / 11 for move, weight in self.weights.items()}
+        self.weights = {move : (weight + 6) / 9 for move, weight in self.weights.items()}
 
     def calculate_advantage(self) -> None:
         best_other_player = max(self.reg[i] - 2 * self.reg[i + 3]  
@@ -208,8 +208,8 @@ class RollerSpeedSkating(Minigame):
         super().__init__(*args, **kwargs)
 
     def obtain_game_specific_parameters(self) -> None:
-        self.risk = self.reg[self.player_idx + 3]
         self.space_travelled = self.reg[self.player_idx]
+        self.risk = self.reg[self.player_idx + 3]
 
     def calculate_weights(self) -> None:
         if self.risk >= 0:
