@@ -111,7 +111,7 @@ class HurdleGame(Minigame):
 
     def relative_advantage(self) -> float:
         best_other_player_points = max(self.reg[i] - 2 * self.reg[i + 3]  
-                                       for i in range(2) if i != self.player_idx)
+                                       for i in range(3) if i != self.player_idx)
         if best_other_player_points < 0:
             best_other_player_points = 0
         advantage = (self.current_position - 2 * self.stun_timer) - best_other_player_points
@@ -148,10 +148,10 @@ class Archery(Minigame):
         self.weights = {move: self.distance2center(new_pos) for move, new_pos in potential_moves.items()}
 
     def normalize_weights(self) -> None:
-        self.weights = {move: (1 / (1 + weight)) for move, weight in self.weights.items()} # 2 * weight??
+        self.weights = {move: (1 / (1 + weight)) for move, weight in self.weights.items()}
 
     def relative_advantage(self) -> float:
-        player_positions = [Coordinates(self.reg[2 * i], self.reg[2 * i + 1]) for i in range(2)]
+        player_positions = [Coordinates(self.reg[2 * i], self.reg[2 * i + 1]) for i in range(3)]
         distances2center = [self.distance2center(pos) for i, pos in enumerate(player_positions) if i != self.player_idx]
         best_other_player_distance = min(distances2center)
         advantage = best_other_player_distance - self.distance2center(self.pos)
@@ -180,8 +180,8 @@ class Diving(Minigame):
         self.weights = {move: (weight + self.combo) / (max(self.weights.values()) + self.combo) for move, weight in self.weights.items()}
 
     def relative_advantage(self) -> float:
-        best_other_player_points = max(self.reg[i] + self.reg[i + 3] for i in range(2) if i != self.player_idx)
-        advantage = (self.reg[self.player_idx] + self.combo) - best_other_player_points
+        best_other_player_points = max(self.reg[i] + self.reg[i + 3] / 2 for i in range(3) if i != self.player_idx)
+        advantage = (self.reg[self.player_idx] + self.combo / 2) - best_other_player_points
         relative_advantage = advantage /  (1 + best_other_player_points)
         return relative_advantage
 
@@ -220,10 +220,10 @@ class RollerSpeedSkating(Minigame):
             self.weights = {move: (weight - min_value) / range_weights for move, weight in self.weights.items()}
     
     def relative_advantage(self) -> float:
-        spaces_travelled = [self.reg[i] for i in range(2) if i != self.player_idx]
+        spaces_travelled = [self.reg[i] for i in range(3) if i != self.player_idx]
         advantage = self.space_travelled - max(spaces_travelled)
         try:
-            relative_advantage = advantage /  max(self.reg[i] for i in range(2))
+            relative_advantage = advantage /  max(self.reg[i] for i in range(3))
         except ZeroDivisionError:
             relative_advantage = 0
         return relative_advantage
