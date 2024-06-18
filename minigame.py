@@ -6,6 +6,7 @@ from typing import NamedTuple
 MOVES = {0: 'UP', 1: 'LEFT', 2: 'DOWN', 3: 'RIGHT'}
 MAPPING = { "UP": "U", "DOWN": "D", "LEFT": "L", "RIGHT": "R" }
 MAX_ADVANTAGE = { "Hurdle": 30, "Archery": 40, "Diving": 120, "RollerSpeedSkating": 1 }
+GAME_MODIFIERS = {"Hurdle": 2, "Archery": 1, "Diving": 0.5, "RollerSpeedSkating": 1 }
 DEBUG = True
 
 #----------------------------------------------------------------------------------------
@@ -13,6 +14,7 @@ class Minigame(ABC):
     """Abstract class representing a generic minigame framework"""
 
     def __init__(self, player_idx: int, nb_games: int) -> None:
+        self.name: str
         self.player_idx = player_idx
         self.nb_games = nb_games
         self.gpu = ""
@@ -71,6 +73,7 @@ class Minigame(ABC):
 
 class HurdleGame(Minigame):
     def __init__(self, *args, **kwargs) -> None:
+        self.name = "Hurdle"
         self.current_position: int
         self.stun_timer = 0
         super().__init__(*args, **kwargs)
@@ -134,6 +137,7 @@ class Coordinates(NamedTuple):
 
 class Archery(Minigame):
     def __init__(self, *args, **kwargs) -> None:
+        self.name =  "Archery"
         self.pos = Coordinates(0, 0)
         super().__init__(*args, **kwargs)
 
@@ -171,6 +175,7 @@ class Archery(Minigame):
 
 class Diving(Minigame):
     def __init__(self, *args, **kwargs) -> None:
+        self.name = "Diving"
         super().__init__(*args, **kwargs)
 
     def obtain_game_specific_parameters(self) -> None:
@@ -199,6 +204,7 @@ class Diving(Minigame):
 
 class RollerSpeedSkating(Minigame):
     def __init__(self, *args, **kwargs) -> None:
+        self.name = "RollerSpeedSkating"
         super().__init__(*args, **kwargs)
 
     def obtain_game_specific_parameters(self) -> None:
@@ -254,9 +260,9 @@ def decide_move(games: list[Minigame], games2win: set[int]) -> str:
                 total_weights[move] = 0.0
             if i in games2win:
                 if game.advantage >= 0:
-                    total_weights[move] += game.weights[move] * 1 / (1 + abs(game.advantage)**4)
+                    total_weights[move] += game.weights[move] * 1 / (1 + abs(game.advantage)**4) * GAME_MODIFIERS[game.name]
                 else:
-                    total_weights[move] += game.weights[move] * 1 / (1 + abs(game.advantage)**2)
+                    total_weights[move] += game.weights[move] * 1 / (1 + abs(game.advantage)**2) * GAME_MODIFIERS[game.name]
     if DEBUG:
         print(f"Total weights: {total_weights}", file=sys.stderr, flush=True)
     return max(total_weights, key=lambda move: total_weights[move])
