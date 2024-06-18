@@ -111,7 +111,7 @@ class HurdleGame(Minigame):
     def relative_advantage(self) -> float:
         best_other_player_points = max(self.reg[i] - 2 * self.reg[i + 3] for i in range(2) if i != self.player_idx)
         advantage = (self.current_position - 2 * self.stun_timer) - best_other_player_points
-        relative_advantage = advantage / best_other_player_points
+        relative_advantage = advantage / (1 + best_other_player_points)
         return relative_advantage
 
 #----------------------------------------------------------------------------------------
