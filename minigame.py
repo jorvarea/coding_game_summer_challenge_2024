@@ -33,6 +33,7 @@ class Minigame(ABC):
         self.update_turn_count()
         if DEBUG:
             print(f"Gpu: {self.gpu}, Reg: {self.reg}, Weights: {self.weights}", file=sys.stderr, flush=True)
+            print(f"Advantage: {self.relative_advantage()}", file=sys.stderr, flush=True)
 
     def update_turn_count(self) -> None:
         """Updates the turn count"""
