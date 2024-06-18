@@ -109,7 +109,10 @@ class HurdleGame(Minigame):
         self.weights = {move : (weight + 8) / 11 for move, weight in self.weights.items()}
 
     def relative_advantage(self) -> float:
-        best_other_player_points = max(self.reg[i] - 2 * self.reg[i + 3] for i in range(2) if i != self.player_idx)
+        best_other_player_points = max(self.reg[i] - 2 * self.reg[i + 3]  
+                                       for i in range(2) if i != self.player_idx)
+        if best_other_player_points < 0:
+            best_other_player_points = 0
         advantage = (self.current_position - 2 * self.stun_timer) - best_other_player_points
         relative_advantage = advantage / (1 + best_other_player_points)
         return relative_advantage
