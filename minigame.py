@@ -110,10 +110,7 @@ class HurdleGame(Minigame):
 
     def relative_advantage(self) -> float:
         advantage = self.current_position - max(self.reg[i] for i in range(2) if i != self.player_idx)
-        try:
-            relative_advantage = advantage / max(self.reg[i] for i in range(2))
-        except ZeroDivisionError:
-            relative_advantage = advantage
+        relative_advantage = advantage / (1 + max(self.reg[i] for i in range(2) if i != self.player_idx))
         return relative_advantage
 
 #----------------------------------------------------------------------------------------
@@ -152,10 +149,7 @@ class Archery(Minigame):
         player_positions = [Coordinates(self.reg[2 * i], self.reg[2 * i + 1]) for i in range(2)]
         distances2center = [self.distance2center(pos) for i, pos in enumerate(player_positions) if i != self.player_idx]
         advantage = min(distances2center) - self.distance2center(self.pos)
-        try:
-            relative_advantage = advantage / min(self.distance2center(pos) for pos in player_positions)
-        except ZeroDivisionError:
-            relative_advantage = advantage
+        relative_advantage = advantage / (1 + min(self.distance2center(pos) for i, pos in enumerate(player_positions) if i != self.player_idx))
         return relative_advantage
 
 #----------------------------------------------------------------------------------------
@@ -182,10 +176,7 @@ class Diving(Minigame):
     def relative_advantage(self) -> float:
         points = [self.reg[i] for i in range(2) if i != self.player_idx]
         advantage = self.reg[self.player_idx] - max(points)
-        try:
-            relative_advantage = advantage /  max(self.reg[i] for i in range(2))
-        except ZeroDivisionError:
-            relative_advantage = 0
+        relative_advantage = advantage /  (1 + max(self.reg[i] for i in range(2) if i != self.player_idx))
         return relative_advantage
 
 #----------------------------------------------------------------------------------------
@@ -252,7 +243,7 @@ def decide_move(games: list[Minigame], games2win: set[int]) -> str:
                 if advantage >= 0:
                     total_weights[move] += game.weights[move] * 1 / (1 + abs(advantage))
                 else:
-                    total_weights[move] += game.weights[move] * 1 / (1 + m.sqrt(abs(advantage)))
+                    total_weights[move] += game.weights[move] * 1 / (1 + (abs(advantage)))**0.3
     if DEBUG:
         print(f"Total weights: {total_weights}", file=sys.stderr, flush=True)
     return max(total_weights, key=lambda move: total_weights[move])
