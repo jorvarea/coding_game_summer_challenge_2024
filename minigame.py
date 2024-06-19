@@ -5,7 +5,7 @@ from typing import NamedTuple
 
 MOVES = {0: 'UP', 1: 'LEFT', 2: 'DOWN', 3: 'RIGHT'}
 MAPPING = { "UP": "U", "DOWN": "D", "LEFT": "L", "RIGHT": "R" }
-MAX_ADVANTAGE = { "Hurdle": 30, "Archery": 40, "Diving": 120, "RollerSpeedSkating": 20 }
+MAX_ADVANTAGE = { "Hurdle": 30, "Archery": 40, "Diving": 120, "RollerSpeedSkating": 20 } # revisar estas cosas
 DEBUG = True
 
 #----------------------------------------------------------------------------------------
@@ -155,7 +155,7 @@ class Archery(Minigame):
         }
         self.weights = {move: -self.distance2center(new_pos) for move, new_pos in potential_moves.items()}
 
-    def normalize_weights(self) -> None:
+    def normalize_weights(self) -> None: # encontrar funcion suave
         super().normalize_weights()
         if self.turns_left > 10:
             self.weights = { "UP": 0, "LEFT": 0, "DOWN": 0, "RIGHT": 0 }
@@ -189,7 +189,7 @@ class Diving(Minigame):
         self.weights = {}
         for move in MOVES.values():
             if MAPPING[move] == self.gpu[0]:
-                self.weights[move] = self.combo + 1
+                self.weights[move] = self.combo + 1 # revisar el uso de los combos para calculos
             else:
                 self.weights[move] = 0
 
@@ -209,7 +209,7 @@ class RollerSpeedSkating(Minigame):
         self.risk = self.reg[self.player_idx + 3]
         self.turns_left = self.reg[6]
 
-    def calculate_weights(self) -> None:
+    def calculate_weights(self) -> None: # revisar algoritmo
         if self.turns_left == 1:
             for move in MOVES.values():
                 index = self.gpu.find(MAPPING[move])
@@ -270,7 +270,7 @@ def decide_move(games: list[Minigame], game_modifiers: list[float], games2win: s
         print(f"Total weights: {total_weights}", file=sys.stderr, flush=True)
     return max(total_weights, key=lambda move: total_weights[move])
 
-def update_game_modifiers(game_modifiers: list[float], score_info: list[int]) -> None:
+def update_game_modifiers(game_modifiers: list[float], score_info: list[int]) -> None: # revisar game_modifiers, ahora mismo estan entre 0.5 y 1, igual habria que normalizarlos
     total_points = score_info[0]
     game_points = [3.0 * score_info[3 * i + 1] + score_info[3 * i + 2] for i in range(4)]
     min_points = min(game_points)
@@ -280,7 +280,7 @@ def update_game_modifiers(game_modifiers: list[float], score_info: list[int]) ->
     else:
         normalized_points = game_points
     for i, points in enumerate(normalized_points):
-        game_modifiers[i] = 1 / (1 + points)
+        game_modifiers[i] = 1 / (1 + points) # añadimos randomness a los game modifiers??
 
 #----------------------------------------------------------------------------------------
 
