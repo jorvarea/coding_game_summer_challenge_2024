@@ -109,13 +109,13 @@ class HurdleGame(Minigame):
             optimal_steps = min(spaces2obs, 3)
             optimal_move = MOVES[optimal_steps]
             if optimal_move == "DOWN":
-                self.weights = { "UP": 2, "LEFT": 1, "DOWN": 2, "RIGHT": -7 }
+                self.weights = { "UP": 2, "LEFT": 1, "DOWN": 2, "RIGHT": -3 }
             elif optimal_move == "UP":
-                self.weights = { "UP": 2, "LEFT": -7, "DOWN": -7, "RIGHT": -7 }
+                self.weights = { "UP": 2, "LEFT": -5, "DOWN": -5, "RIGHT": -5 }
             elif optimal_move == "RIGHT":
                 self.weights = { "UP": 2, "LEFT": 1, "DOWN": 2, "RIGHT": 3 }
             elif optimal_move == "LEFT":
-                self.weights = { "UP": -7, "LEFT": 1, "DOWN": -7, "RIGHT": -7 }
+                self.weights = { "UP": -4, "LEFT": 1, "DOWN": -4, "RIGHT": -4 }
         else:
             self.weights = { "UP": 0, "LEFT": 0, "DOWN": 0, "RIGHT": 0 }
 
