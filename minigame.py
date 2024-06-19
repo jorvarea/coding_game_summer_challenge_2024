@@ -280,8 +280,7 @@ def update_game_modifiers(game_modifiers: list[float], score_info: list[int]) ->
     else:
         normalized_points = game_points
     for i, points in enumerate(normalized_points):
-        if total_points > 10:
-            game_modifiers[i] = 1 / (1 + points)
+        game_modifiers[i] = 1 / (1 + points)
 
 #----------------------------------------------------------------------------------------
 
@@ -290,14 +289,17 @@ def main() -> None:
     player_idx, nb_games = read_game_info()
     games = [HurdleGame(player_idx, nb_games), Archery(player_idx, nb_games), 
              RollerSpeedSkating(player_idx, nb_games), Diving(player_idx, nb_games)]
+    turn = 1
     while True:
         for i in range(3):
             if i == player_idx:
                 score_info = [int(x) for x in input().split()]
             else:
                 _ = input()
-        update_game_modifiers(game_modifiers, score_info)
+        if turn > 15:
+            update_game_modifiers(game_modifiers, score_info)
         print(decide_move(games, game_modifiers, {0, 1, 2, 3}))
+        turn += 1
 
 #----------------------------------------------------------------------------------------
 
