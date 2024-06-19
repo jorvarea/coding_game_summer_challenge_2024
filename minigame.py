@@ -54,20 +54,22 @@ class Minigame(ABC):
         """Method for calculating the weights of each move"""
         pass
     
-    @abstractmethod
     def normalize_weights(self) -> None:
-        """Make it so the weights are in the interval [0, 1] so they're comparable between games"""
-        pass
+        """Normalize the weights so they are comparable between games"""
+        min_value = min(self.weights.values())
+        max_value = max(self.weights.values())
+        range_weights = max_value - min_value
+        if range_weights != 0:
+            self.weights = {move: (weight - min_value) / range_weights for move, weight in self.weights.items()}
 
     @abstractmethod
     def calculate_advantage(self) -> None:
         """Calculate the advantage/disadvantage against the other players"""
         pass
 
-    @abstractmethod
     def normalize_advantage(self) -> None:
-        """Make it so the advantage is in the interval [0, 1] so it's comparable between games"""
-        pass
+        """Normalize the advantage so its comparable between games"""
+        self.advantage = (self.advantage + MAX_ADVANTAGE[self.name]) / (2 * MAX_ADVANTAGE[self.name])
 
 #----------------------------------------------------------------------------------------
 
@@ -118,16 +120,10 @@ class HurdleGame(Minigame):
         else:
             self.weights = { "UP": 0, "LEFT": 0, "DOWN": 0, "RIGHT": 0 }
 
-    def normalize_weights(self) -> None:
-        self.weights = {move : (weight + 7) / 10 for move, weight in self.weights.items()}
-
     def calculate_advantage(self) -> None:
         best_other_player = max(self.reg[i] - 2 * self.reg[i + 3]  
                                 for i in range(3) if i != self.player_idx)
         self.advantage = (self.current_position - 2 * self.stun_timer) - best_other_player
-
-    def normalize_advantage(self) -> None:
-        self.advantage = (self.advantage + MAX_ADVANTAGE["Hurdle"]) / (2 * MAX_ADVANTAGE["Hurdle"])
 
 #----------------------------------------------------------------------------------------
 
@@ -168,9 +164,6 @@ class Archery(Minigame):
         best_other_player = min(distances2center)
         self.advantage = best_other_player - self.distance2center(self.pos)
 
-    def normalize_advantage(self) -> None:
-        self.advantage = (self.advantage + MAX_ADVANTAGE["Archery"]) / (2 * MAX_ADVANTAGE["Archery"])
-
 #----------------------------------------------------------------------------------------
 
 class Diving(Minigame):
@@ -190,15 +183,9 @@ class Diving(Minigame):
             else:
                 self.weights[move] = - self.combo
 
-    def normalize_weights(self) -> None:
-        self.weights = {move: (weight + self.combo) / (max(self.weights.values()) + self.combo) for move, weight in self.weights.items()}
-
     def calculate_advantage(self) -> None:
         best_other_player = max(self.reg[i] + self.reg[i + 3] for i in range(3) if i != self.player_idx)
         self.advantage = (self.reg[self.player_idx] + self.combo) - best_other_player
-
-    def normalize_advantage(self) -> None:
-        self.advantage = (self.advantage + MAX_ADVANTAGE["Diving"]) / (2 * MAX_ADVANTAGE["Diving"])
 
 #----------------------------------------------------------------------------------------
 
@@ -217,34 +204,24 @@ class RollerSpeedSkating(Minigame):
             for move in MOVES.values():
                 index = self.gpu.find(MAPPING[move])
                 if index == 0:
-                    self.weights[move] = 2 if self.risk > 0 else 1
+                    self.weights[move] = 1 + 4/5 if self.risk > 0 else 1
                 elif index == 1:
                     self.weights[move] = 2
                 elif index == 2:
-                    self.weights[move] = 1
+                    self.weights[move] = 2 - 4/5
                 else:
                     if self.turns_left == 1:
                         self.weights[move] = 3
                     elif self.risk == 4:
-                        self.weights[move] = 2
+                        self.weights[move] = 3 - 4/5
                     else:
-                        self.weights[move] = 1
+                        self.weights[move] = 3 - 2 * 4/5
         else:
             self.weights = { "UP": 0, "LEFT": 0, "DOWN": 0, "RIGHT": 0 }
-
-    def normalize_weights(self) -> None:
-        min_value = min(self.weights.values())
-        max_value = max(self.weights.values())
-        range_weights = max_value - min_value
-        if range_weights != 0:
-            self.weights = {move: (weight - min_value) / range_weights for move, weight in self.weights.items()}
     
     def calculate_advantage(self) -> None:
-        spaces_travelled = [self.reg[i] - 2 * abs(self.reg[i + 3]) for i in range(3) if i != self.player_idx]
-        self.advantage = (self.space_travelled - 2 * abs(self.risk)) - max(spaces_travelled)
-
-    def normalize_advantage(self) -> None:
-        self.advantage = (self.advantage + MAX_ADVANTAGE["RollerSpeedSkating"]) / (2 * MAX_ADVANTAGE["RollerSpeedSkating"])
+        spaces_travelled = [self.reg[i] - 4/5 * abs(self.reg[i + 3]) for i in range(3) if i != self.player_idx]
+        self.advantage = (self.space_travelled - 4/5 * abs(self.risk)) - max(spaces_travelled)
 
 #----------------------------------------------------------------------------------------
 
