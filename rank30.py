@@ -157,16 +157,7 @@ class Archery(Minigame):
 
     def normalize_weights(self) -> None:
         super().normalize_weights()
-        if self.turns_left > 10:
-            self.weights = { "UP": 0, "LEFT": 0, "DOWN": 0, "RIGHT": 0 }
-        elif self.turns_left >= 7:
-            self.weights = {move: weight / 2 for move, weight in self.weights.items()}
-        elif self.turns_left >= 4:
-            self.weights = {move: weight for move, weight in self.weights.items()}
-        elif self.turns_left >= 2:
-            self.weights = {move: weight * 1.5 for move, weight in self.weights.items()}
-        else:
-            self.weights = {move: weight * 3 for move, weight in self.weights.items()}
+        self.weights = {move: weight * 1.5**(1 / self.turns_left - 1 / 3) for move, weight in self.weights.items()}
 
     def calculate_advantage(self) -> None:
         player_positions = [Coordinates(self.reg[2 * i], self.reg[2 * i + 1]) for i in range(3)]
