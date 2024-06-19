@@ -6,7 +6,6 @@ from typing import NamedTuple
 MOVES = {0: 'UP', 1: 'LEFT', 2: 'DOWN', 3: 'RIGHT'}
 MAPPING = { "UP": "U", "DOWN": "D", "LEFT": "L", "RIGHT": "R" }
 MAX_ADVANTAGE = { "Hurdle": 30, "Archery": 40, "Diving": 120, "RollerSpeedSkating": 20 }
-GAME_MODIFIERS = {"Hurdle": 1, "Archery": 1, "Diving": 0.9, "RollerSpeedSkating": 1 }
 DEBUG = True
 
 #----------------------------------------------------------------------------------------
@@ -181,7 +180,7 @@ class Diving(Minigame):
             if MAPPING[move] == self.gpu[0]:
                 self.weights[move] = self.combo + 1
             else:
-                self.weights[move] = - self.combo
+                self.weights[move] = 0
 
     def calculate_advantage(self) -> None:
         best_other_player = max(self.reg[i] + self.reg[i + 3] for i in range(3) if i != self.player_idx)
@@ -200,7 +199,18 @@ class RollerSpeedSkating(Minigame):
         self.turns_left = self.reg[6]
 
     def calculate_weights(self) -> None:
-        if self.risk >= 0:
+        if self.turns_left == 1:
+            for move in MOVES.values():
+                index = self.gpu.find(MAPPING[move])
+                if index == 0:
+                    self.weights[move] = 1
+                elif index == 1:
+                    self.weights[move] = 2
+                elif index == 2:
+                    self.weights[move] = 2
+                else:
+                    self.weights[move] = 3
+        elif self.risk >= 0:
             for move in MOVES.values():
                 index = self.gpu.find(MAPPING[move])
                 if index == 0:
@@ -210,9 +220,7 @@ class RollerSpeedSkating(Minigame):
                 elif index == 2:
                     self.weights[move] = 2 - 4/5
                 else:
-                    if self.turns_left == 1:
-                        self.weights[move] = 3
-                    elif self.risk == 4:
+                    if self.risk == 4:
                         self.weights[move] = 3 - 4/5
                     else:
                         self.weights[move] = 3 - 2 * 4/5
@@ -220,8 +228,10 @@ class RollerSpeedSkating(Minigame):
             self.weights = { "UP": 0, "LEFT": 0, "DOWN": 0, "RIGHT": 0 }
     
     def calculate_advantage(self) -> None:
-        spaces_travelled = [self.reg[i] - 4/5 * abs(self.reg[i + 3]) for i in range(3) if i != self.player_idx]
-        self.advantage = (self.space_travelled - 4/5 * abs(self.risk)) - max(spaces_travelled)
+        spaces_travelled = [self.reg[i] - 4/5 * self.reg[i + 3] if self.reg[i + 3] >= 0 else self.reg[i] - 2 * abs(self.reg[i + 3])
+                            for i in range(3) if i != self.player_idx]
+        self.advantage = (self.space_travelled - 4/5 * self.risk if self.risk >= 0 
+                          else self.space_travelled - 2 * abs(self.risk)) - max(spaces_travelled)
 
 #----------------------------------------------------------------------------------------
 
@@ -231,7 +241,7 @@ def read_game_info() -> tuple[int, int]:
     nb_games = int(input())
     return player_idx, nb_games
 
-def decide_move(games: list[Minigame], games2win: set[int]) -> str:
+def decide_move(games: list[Minigame], game_modifiers: list[float], games2win: set[int]) -> str:
     """Returns the move to play by calculating the total weigths for all the games"""
     total_weights = {}
     for i, game in enumerate(games):
@@ -241,25 +251,43 @@ def decide_move(games: list[Minigame], games2win: set[int]) -> str:
                 total_weights[move] = 0.0
             if i in games2win:
                 if game.advantage >= 0:
-                    total_weights[move] += game.weights[move] * 1 / (1 + abs(game.advantage)**4) * GAME_MODIFIERS[game.name]
+                    total_weights[move] += game.weights[move] * 1 / (1 + abs(game.advantage)**4) * game_modifiers[i]
                 else:
-                    total_weights[move] += game.weights[move] * 1 / (1 + abs(game.advantage)**2) * GAME_MODIFIERS[game.name]
+                    total_weights[move] += game.weights[move] * 1 / (1 + abs(game.advantage)**2) * game_modifiers[i]
     if DEBUG:
         print(f"Total weights: {total_weights}", file=sys.stderr, flush=True)
     return max(total_weights, key=lambda move: total_weights[move])
 
+def update_game_modifiers(game_modifiers: list[float], score_info: list[int]) -> None:
+    total_points = score_info[0]
+    game_points = [3.0 * score_info[3 * i + 1] + score_info[3 * i + 2] for i in range(4)]
+    min_points = min(game_points)
+    max_points = max(game_points)
+    if (max_points - min_points) != 0:
+        normalized_points = [(points - min_points) / (max_points - min_points) for points in game_points]
+    else:
+        normalized_points = game_points
+    for i, points in enumerate(normalized_points):
+        if total_points > 10 and points == 0:
+            game_modifiers[i] = 1
+        else:
+            game_modifiers[i] = normalized_points[i]
+
 #----------------------------------------------------------------------------------------
 
 def main() -> None:
+    game_modifiers = [1.0, 1.0, 1.0, 1.0]
     player_idx, nb_games = read_game_info()
     games = [HurdleGame(player_idx, nb_games), Archery(player_idx, nb_games), 
              RollerSpeedSkating(player_idx, nb_games), Diving(player_idx, nb_games)]
-    turn = 1
     while True:
-        for _ in range(3):
-            score_info = input()
-        print(decide_move(games, {0, 1, 3}))
-        turn += 1
+        for i in range(3):
+            if i == player_idx:
+                score_info = [int(x) for x in input().split()]
+            else:
+                _ = input()
+        update_game_modifiers(game_modifiers, score_info)
+        print(decide_move(games, game_modifiers, {0, 1, 2, 3}))
 
 #----------------------------------------------------------------------------------------
 
