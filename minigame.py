@@ -312,13 +312,13 @@ def decide_move(games: list[Minigame], game_modifiers: list[float], games2win: s
 
 def update_game_modifiers(game_modifiers: list[float], score_info: list[int]) -> None:
     total_points = score_info[0]
-    game_points = [3.0 * score_info[3 * i + 1] + score_info[3 * i + 2] for i in range(4)]
-    min_points = min(game_points)
-    max_points = max(game_points)
-    if (max_points - min_points) != 0:
-        normalized_points = [(points - min_points) / (max_points - min_points) for points in game_points]
+    game_score = [3.0 * score_info[3 * i + 1] + score_info[3 * i + 2] for i in range(4)]
+    min_score = min(game_score)
+    max_score = max(game_score)
+    if (max_score - min_score) != 0:
+        normalized_points = [(points - min_score) / (max_score - min_score) for points in game_score]
     else:
-        normalized_points = game_points
+        normalized_points = game_score
     for i, points in enumerate(normalized_points):
         game_modifiers[i] = 1 / (1 + points)
 
