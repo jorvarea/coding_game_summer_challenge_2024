@@ -316,7 +316,7 @@ def update_game_modifiers(game_modifiers: list[float], score_info: list[int]) ->
     min_score = min(game_score)
     max_score = max(game_score)
     if (max_score - min_score) != 0:
-        normalized_score = [(points - min_score) / (max_score - min_score) for points in game_score]
+        normalized_score = [(score - min_score) / (max_score - min_score) for score in game_score]
     else:
         normalized_score = game_score
     for i, score in enumerate(normalized_score):
