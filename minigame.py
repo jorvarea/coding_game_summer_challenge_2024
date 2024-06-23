@@ -51,8 +51,10 @@ class Minigame(ABC):
         self.update_turn_count()
         if DEBUG:
             print(f"Game: {self.name}", file=sys.stderr, flush=True)
+            print(f"Weights: {self.weights}", file=sys.stderr, flush=True)
             print(f"Advantage: {self.advantage}", file=sys.stderr, flush=True)
             print(f"Points: {[(points.player_idx, points.points) for points in self.player_points]}", file=sys.stderr, flush=True)
+            print(f"------------------------------------------------------------", file=sys.stderr, flush=True)
 
     def update_turn_count(self) -> None:
         """Updates the turn count"""
@@ -287,7 +289,7 @@ def read_game_info() -> tuple[int, int]:
     nb_games = int(input())
     return player_idx, nb_games
 
-def decide_move(games: list[Minigame], game_modifiers: list[float], games2win: set[int]) -> str:
+def decide_move(games: list[Minigame], game_modifiers: list[float]) -> str:
     """Returns the move to play by calculating the total weigths for all the games"""
     total_weights = {}
     for i, game in enumerate(games):
@@ -295,19 +297,17 @@ def decide_move(games: list[Minigame], game_modifiers: list[float], games2win: s
         for move in game.weights:
             if move not in total_weights:
                 total_weights[move] = 0.0
-            if i in games2win:
-                advantage = game.advantage
-                if advantage > 0.35:
-                    if advantage >= 0.5:
-                        total_weights[move] += game.weights[move] * 1 / (1 + abs(advantage)**4) * game_modifiers[i]
-                    else:
-                        total_weights[move] += game.weights[move] * 1 / (1 + abs(advantage)**2) * game_modifiers[i]
+            advantage = game.advantage
+            if 0.35 < advantage < 0.65:
+                total_weights[move] += game.weights[move] * 1 / (1 + abs(advantage)**4) * game_modifiers[i]
+
     if DEBUG:
         print(f"Game modifiers: {game_modifiers}", file=sys.stderr, flush=True)
         print(f"Total weights: {total_weights}", file=sys.stderr, flush=True)
     return max(total_weights, key=lambda move: total_weights[move])
 
 def update_game_modifiers(game_modifiers: list[float], score_info: list[int]) -> None:
+    """Update the game modifiers so it puts more weight on losing minigames"""
     total_points = score_info[0]
     game_score = [3.0 * score_info[3 * i + 1] + score_info[3 * i + 2] for i in range(4)]
     min_score = min(game_score)
@@ -335,7 +335,7 @@ def main() -> None:
                 _ = input()
         if turn > 15:
             update_game_modifiers(game_modifiers, score_info)
-        print(decide_move(games, game_modifiers, {0, 1, 2, 3}))
+        print(decide_move(games, game_modifiers))
         turn += 1
 
 #----------------------------------------------------------------------------------------
