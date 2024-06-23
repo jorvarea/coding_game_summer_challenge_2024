@@ -226,8 +226,8 @@ class Diving(Minigame):
                 self.weights[move] = 0
 
     def calculate_players_points(self) -> None:
-        self.player_points = sorted([Puntuation(self.reg[player_idx] + self.reg[player_idx + 3], player_idx) 
-                                     for player_idx in range(3)], reverse=True)
+        self.player_points = sorted([Puntuation(self.reg[i] + self.reg[i + 3], i) 
+                                     for i in range(3)], reverse=True)
 
     def calculate_advantage(self) -> None:
         super().calculate_advantage()
