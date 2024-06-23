@@ -293,3 +293,17 @@ def main() -> None:
 #----------------------------------------------------------------------------------------
 
 main()
+
+
+    # def normalize_weights(self) -> None: # encontrar funcion suave
+    #     super().normalize_weights()
+    #     if self.turns_left > 10:
+    #         self.weights = { "UP": 0, "LEFT": 0, "DOWN": 0, "RIGHT": 0 }
+    #     elif self.turns_left >= 7:
+    #         self.weights = {move: weight / 2 for move, weight in self.weights.items()}
+    #     elif self.turns_left >= 4:
+    #         self.weights = {move: weight for move, weight in self.weights.items()}
+    #     elif self.turns_left >= 2:
+    #         self.weights = {move: weight * 1.5 for move, weight in self.weights.items()}
+    #     else:
+    #         self.weights = {move: weight * 3 for move, weight in self.weights.items()}
