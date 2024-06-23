@@ -3,10 +3,18 @@ import sys
 from abc import ABC, abstractmethod
 from typing import NamedTuple
 
+#----------------------------------------------------------------------------------------
+
 MOVES = {0: 'UP', 1: 'LEFT', 2: 'DOWN', 3: 'RIGHT'}
 MAPPING = { "UP": "U", "DOWN": "D", "LEFT": "L", "RIGHT": "R" }
-MAX_ADVANTAGE = { "Hurdle": 5, "Archery": 10, "Diving": 10, "RollerSpeedSkating": 5 } # revisar estas cosas
+MAX_ADVANTAGE = { "Hurdle": 6, "Archery": 12, "Diving": 15, "RollerSpeedSkating": 6 } # this is 3 * average_points_per_turn
 DEBUG = True
+
+#----------------------------------------------------------------------------------------
+
+class Puntuation(NamedTuple):
+    points: float
+    player_idx: int
 
 #----------------------------------------------------------------------------------------
 class Minigame(ABC):
@@ -20,6 +28,7 @@ class Minigame(ABC):
         self.reg: list[int] = []
         self.weights : dict[str, float] = {}
         self.advantage = 0.0
+        self.player_points: list[Puntuation] = []
         self.turn = 1
 
     def game_loop(self) -> None:
@@ -31,6 +40,7 @@ class Minigame(ABC):
         if self.gpu != "GAME_OVER":
             self.calculate_weights()
             self.normalize_weights()
+            self.calculate_players_points()
             self.calculate_advantage()
             self.normalize_advantage()
         else:
@@ -39,6 +49,7 @@ class Minigame(ABC):
         if DEBUG:
             print(f"Gpu: {self.gpu}, Reg: {self.reg}, Weights: {self.weights}", file=sys.stderr, flush=True)
             print(f"Advantage: {self.advantage}", file=sys.stderr, flush=True)
+            print(f"Points: {self.player_points}", file=sys.stderr, flush=True)
 
     def update_turn_count(self) -> None:
         """Updates the turn count"""
@@ -46,6 +57,7 @@ class Minigame(ABC):
 
     @abstractmethod
     def obtain_game_specific_parameters(self) -> None:
+        """Calculate parameters that are specific to each game from the gpu and registers"""
         pass
 
     @abstractmethod
@@ -62,9 +74,18 @@ class Minigame(ABC):
             self.weights = {move: (weight - min_value) / range_weights for move, weight in self.weights.items()}
 
     @abstractmethod
-    def calculate_advantage(self) -> None:
-        """Calculate the advantage/disadvantage against the other players"""
+    def calculate_players_points(self) -> None:
+        """Define a points metric for that game and calculate the puntuation for all players"""
         pass
+
+    def calculate_advantage(self) -> None:
+        """Calculate the advantage/disadvantage against the next player"""
+        if self.player_points[0].player_idx == self.player_idx:
+            self.advantage = self.player_points[0].points - self.player_points[1].points
+        elif self.player_points[1].player_idx == self.player_idx:
+            self.advantage =  self.player_points[1].points - self.player_points[0].points
+        else:
+            self.advantage = self.player_points[2].points - self.player_points[1].points
 
     def normalize_advantage(self) -> None:
         """Normalize the advantage so its comparable between games"""
@@ -118,11 +139,14 @@ class HurdleGame(Minigame):
         else:
             self.weights = { "UP": 0, "LEFT": 0, "DOWN": 0, "RIGHT": 0 }
 
+    def calculate_players_points(self) -> None:
+        self.player_points = sorted([Puntuation(self.reg[i] - 2 * self.reg[i + 3], i) 
+                                     for i in range(3)], reverse=True)
+
     def calculate_advantage(self) -> None:
-        best_other_player = max(self.reg[i] - 2 * self.reg[i + 3]  
-                                for i in range(3) if i != self.player_idx)
-        distance2finish = 30 - max(self.current_position, best_other_player)
-        self.advantage = ((self.current_position - 2 * self.stun_timer) - best_other_player) / distance2finish
+        super().calculate_advantage()
+        distance2finish = 30 - self.player_points[0].points
+        self.advantage /= distance2finish
 
 #----------------------------------------------------------------------------------------
 
@@ -155,24 +179,27 @@ class Archery(Minigame):
         }
         self.weights = {move: -self.distance2center(new_pos) for move, new_pos in potential_moves.items()}
 
-    def normalize_weights(self) -> None: # encontrar funcion suave
-        super().normalize_weights()
-        if self.turns_left > 10:
-            self.weights = { "UP": 0, "LEFT": 0, "DOWN": 0, "RIGHT": 0 }
-        elif self.turns_left >= 7:
-            self.weights = {move: weight / 2 for move, weight in self.weights.items()}
-        elif self.turns_left >= 4:
-            self.weights = {move: weight for move, weight in self.weights.items()}
-        elif self.turns_left >= 2:
-            self.weights = {move: weight * 1.5 for move, weight in self.weights.items()}
-        else:
-            self.weights = {move: weight * 3 for move, weight in self.weights.items()}
+    # def normalize_weights(self) -> None: # encontrar funcion suave
+    #     super().normalize_weights()
+    #     if self.turns_left > 10:
+    #         self.weights = { "UP": 0, "LEFT": 0, "DOWN": 0, "RIGHT": 0 }
+    #     elif self.turns_left >= 7:
+    #         self.weights = {move: weight / 2 for move, weight in self.weights.items()}
+    #     elif self.turns_left >= 4:
+    #         self.weights = {move: weight for move, weight in self.weights.items()}
+    #     elif self.turns_left >= 2:
+    #         self.weights = {move: weight * 1.5 for move, weight in self.weights.items()}
+    #     else:
+    #         self.weights = {move: weight * 3 for move, weight in self.weights.items()}
+
+    def calculate_players_points(self) -> None:
+        player_positions = [Coordinates(self.reg[2 * i], self.reg[2 * i + 1]) for i in range(3)]
+        distances2center = [self.distance2center(pos) for pos in player_positions]
+        self.player_points = sorted([Puntuation(distances2center[i], i) for i in range(3)])
 
     def calculate_advantage(self) -> None:
-        player_positions = [Coordinates(self.reg[2 * i], self.reg[2 * i + 1]) for i in range(3)]
-        distances2center = [self.distance2center(pos) for i, pos in enumerate(player_positions) if i != self.player_idx]
-        best_other_player = min(distances2center)
-        self.advantage = (best_other_player - self.distance2center(self.pos)) / self.turns_left
+        super().calculate_advantage()
+        self.advantage /= self.turns_left
 
 #----------------------------------------------------------------------------------------
 
@@ -194,9 +221,13 @@ class Diving(Minigame):
             else:
                 self.weights[move] = 0
 
+    def calculate_players_points(self) -> None:
+        self.player_points = sorted([Puntuation(self.reg[player_idx] + self.reg[player_idx + 3], player_idx) 
+                                     for player_idx in range(3)], reverse=True)
+
     def calculate_advantage(self) -> None:
-        best_other_player = max(self.reg[i] + self.reg[i + 3] for i in range(3) if i != self.player_idx)
-        self.advantage = ((self.reg[self.player_idx] + self.combo) - best_other_player) / self.turns_left
+        super().calculate_advantage()
+        self.advantage /= self.turns_left
 
 #----------------------------------------------------------------------------------------
 
@@ -210,8 +241,8 @@ class RollerSpeedSkating(Minigame):
         self.risk = self.reg[self.player_idx + 3]
         self.turns_left = self.reg[6]
 
-    def calculate_weights(self) -> None: # revisar algoritmo
-        if self.turns_left == 1:
+    def calculate_weights(self) -> None:
+        if self.turns_left == 1 or (self.turns_left == 2 and self.risk <= 1):
             for move in MOVES.values():
                 index = self.gpu.find(MAPPING[move])
                 if index == 0:
@@ -238,12 +269,15 @@ class RollerSpeedSkating(Minigame):
                         self.weights[move] = 3 - 2 * 4/5
         else:
             self.weights = { "UP": 0, "LEFT": 0, "DOWN": 0, "RIGHT": 0 }
+
+    def calculate_players_points(self) -> None:
+        self.player_points = sorted([Puntuation(self.reg[i] - 4/5 * self.reg[i + 3] if self.reg[i + 3] >= 0 
+                                                else self.reg[i] - 2 * abs(self.reg[i + 3]), i) 
+                                                for i in range(3)], reverse=True)
     
     def calculate_advantage(self) -> None:
-        spaces_travelled = [self.reg[i] - 4/5 * self.reg[i + 3] if self.reg[i + 3] >= 0 else self.reg[i] - 2 * abs(self.reg[i + 3])
-                            for i in range(3) if i != self.player_idx]
-        self.advantage = ((self.space_travelled - 4/5 * self.risk if self.risk >= 0 
-                          else self.space_travelled - 2 * abs(self.risk)) - max(spaces_travelled)) / self.turns_left
+        super().calculate_advantage()
+        self.advantage /= self.turns_left
 
 #----------------------------------------------------------------------------------------
 
@@ -262,16 +296,18 @@ def decide_move(games: list[Minigame], game_modifiers: list[float], games2win: s
             if move not in total_weights:
                 total_weights[move] = 0.0
             if i in games2win:
-                if game.advantage >= 0:
-                    total_weights[move] += game.weights[move] * 1 / (1 + abs(game.advantage)**4) * game_modifiers[i]
-                else:
-                    total_weights[move] += game.weights[move] * 1 / (1 + abs(game.advantage)**2) * game_modifiers[i]
+                advantage = game.advantage
+                if advantage > 0.35:
+                    if advantage >= 0.5:
+                        total_weights[move] += game.weights[move] * 1 / (1 + abs(advantage)**4) * game_modifiers[i]
+                    else:
+                        total_weights[move] += game.weights[move] * 1 / (1 + abs(advantage)**2) * game_modifiers[i]
     if DEBUG:
         print(f"Game modifiers: {game_modifiers}", file=sys.stderr, flush=True)
         print(f"Total weights: {total_weights}", file=sys.stderr, flush=True)
     return max(total_weights, key=lambda move: total_weights[move])
 
-def update_game_modifiers(game_modifiers: list[float], score_info: list[int]) -> None: # revisar game_modifiers, ahora mismo estan entre 0.5 y 1, igual habria que normalizarlos
+def update_game_modifiers(game_modifiers: list[float], score_info: list[int]) -> None:
     total_points = score_info[0]
     game_points = [3.0 * score_info[3 * i + 1] + score_info[3 * i + 2] for i in range(4)]
     min_points = min(game_points)
