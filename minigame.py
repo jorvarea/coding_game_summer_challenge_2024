@@ -85,11 +85,11 @@ class Minigame(ABC):
         """Calculate the advantage/disadvantage against the next player"""
         my_points = self.player_points[self.player_idx].points
         if self.player_points[0].points == my_points:
-            self.advantage = self.player_points[0].points - self.player_points[1].points
+            self.advantage = my_points - self.player_points[1].points
         elif self.player_points[1].points == my_points:
-            self.advantage =  self.player_points[1].points - self.player_points[0].points
+            self.advantage =  my_points - self.player_points[0].points 
         else:
-            self.advantage = self.player_points[2].points - self.player_points[1].points
+            self.advantage = my_points - self.player_points[1].points
 
     def normalize_advantage(self) -> None:
         """Normalize the advantage so its comparable between games"""
