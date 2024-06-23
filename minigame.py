@@ -7,7 +7,7 @@ from typing import NamedTuple
 
 MOVES = {0: 'UP', 1: 'LEFT', 2: 'DOWN', 3: 'RIGHT'}
 MAPPING = { "UP": "U", "DOWN": "D", "LEFT": "L", "RIGHT": "R" }
-MAX_ADVANTAGE = { "Hurdle": 6, "Archery": 12, "Diving": 15, "RollerSpeedSkating": 6 } # this is 3 * average_points_per_turn
+MAX_ADVANTAGE = { "Hurdle": 6, "Archery": 12, "Diving": 12, "RollerSpeedSkating": 6 } # this is 3 * average_points_per_turn
 DEBUG = True
 
 #----------------------------------------------------------------------------------------
@@ -52,7 +52,7 @@ class Minigame(ABC):
         if DEBUG:
             print(f"Gpu: {self.gpu}, Reg: {self.reg}, Weights: {self.weights}", file=sys.stderr, flush=True)
             print(f"Advantage: {self.advantage}", file=sys.stderr, flush=True)
-            print(f"Points: {self.player_points}", file=sys.stderr, flush=True)
+            print(f"Points: {[(points.player_idx, points.points) for points in self.player_points]}", file=sys.stderr, flush=True)
 
     def update_turn_count(self) -> None:
         """Updates the turn count"""
@@ -83,9 +83,10 @@ class Minigame(ABC):
 
     def calculate_advantage(self) -> None:
         """Calculate the advantage/disadvantage against the next player"""
-        if self.player_points[0].player_idx == self.player_idx:
+        my_points = self.player_points[self.player_idx].points
+        if self.player_points[0].points == my_points:
             self.advantage = self.player_points[0].points - self.player_points[1].points
-        elif self.player_points[1].player_idx == self.player_idx:
+        elif self.player_points[1].points == my_points:
             self.advantage =  self.player_points[1].points - self.player_points[0].points
         else:
             self.advantage = self.player_points[2].points - self.player_points[1].points
