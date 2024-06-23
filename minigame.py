@@ -184,18 +184,19 @@ class Diving(Minigame):
     def obtain_game_specific_parameters(self) -> None:
         self.points = self.reg[self.player_idx]
         self.combo = self.reg[self.player_idx + 3]
+        self.turns_left = len(self.gpu)
 
     def calculate_weights(self) -> None:
         self.weights = {}
         for move in MOVES.values():
             if MAPPING[move] == self.gpu[0]:
-                self.weights[move] = self.combo + 1 # revisar el uso de los combos para calculos
+                self.weights[move] = self.combo + 1
             else:
                 self.weights[move] = 0
 
     def calculate_advantage(self) -> None:
-        best_other_player = max(self.reg[i] + self.reg[i + 3] for i in range(3) if i != self.player_idx)
-        self.advantage = (self.reg[self.player_idx] + self.combo) - best_other_player
+        best_other_player = max(self.reg[i] + self.reg[i + 3] / self.turns_left for i in range(3) if i != self.player_idx)
+        self.advantage = (self.reg[self.player_idx] + self.combo / self.turns_left) - best_other_player
 
 #----------------------------------------------------------------------------------------
 
