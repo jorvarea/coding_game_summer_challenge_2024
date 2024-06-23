@@ -5,7 +5,7 @@ from typing import NamedTuple
 
 MOVES = {0: 'UP', 1: 'LEFT', 2: 'DOWN', 3: 'RIGHT'}
 MAPPING = { "UP": "U", "DOWN": "D", "LEFT": "L", "RIGHT": "R" }
-MAX_ADVANTAGE = { "Hurdle": 30, "Archery": 40, "Diving": 120, "RollerSpeedSkating": 20 } # revisar estas cosas
+MAX_ADVANTAGE = { "Hurdle": 5, "Archery": 10, "Diving": 10, "RollerSpeedSkating": 5 } # revisar estas cosas
 DEBUG = True
 
 #----------------------------------------------------------------------------------------
@@ -76,12 +76,11 @@ class HurdleGame(Minigame):
     def __init__(self, *args, **kwargs) -> None:
         self.name = "Hurdle"
         self.current_position: int
-        self.stun_timer = 0
         super().__init__(*args, **kwargs)
 
     def obtain_game_specific_parameters(self) -> None:
         self.current_position = self.reg[self.player_idx]
-        self.stun_timer = self.reg[3 + self.player_idx]
+        self.stun_timer = self.reg[self.player_idx + 3]
 
     def count_obstacles(self) -> int:
         """Count the number of obstacles in the race track"""
@@ -122,7 +121,8 @@ class HurdleGame(Minigame):
     def calculate_advantage(self) -> None:
         best_other_player = max(self.reg[i] - 2 * self.reg[i + 3]  
                                 for i in range(3) if i != self.player_idx)
-        self.advantage = (self.current_position - 2 * self.stun_timer) - best_other_player
+        distance2finish = 30 - max(self.current_position, best_other_player)
+        self.advantage = ((self.current_position - 2 * self.stun_timer) - best_other_player) / distance2finish
 
 #----------------------------------------------------------------------------------------
 
@@ -172,7 +172,7 @@ class Archery(Minigame):
         player_positions = [Coordinates(self.reg[2 * i], self.reg[2 * i + 1]) for i in range(3)]
         distances2center = [self.distance2center(pos) for i, pos in enumerate(player_positions) if i != self.player_idx]
         best_other_player = min(distances2center)
-        self.advantage = best_other_player - self.distance2center(self.pos)
+        self.advantage = (best_other_player - self.distance2center(self.pos)) / self.turns_left
 
 #----------------------------------------------------------------------------------------
 
@@ -195,8 +195,8 @@ class Diving(Minigame):
                 self.weights[move] = 0
 
     def calculate_advantage(self) -> None:
-        best_other_player = max(self.reg[i] + self.reg[i + 3] / self.turns_left for i in range(3) if i != self.player_idx)
-        self.advantage = (self.reg[self.player_idx] + self.combo / self.turns_left) - best_other_player
+        best_other_player = max(self.reg[i] + self.reg[i + 3] for i in range(3) if i != self.player_idx)
+        self.advantage = ((self.reg[self.player_idx] + self.combo) - best_other_player) / self.turns_left
 
 #----------------------------------------------------------------------------------------
 
@@ -242,8 +242,8 @@ class RollerSpeedSkating(Minigame):
     def calculate_advantage(self) -> None:
         spaces_travelled = [self.reg[i] - 4/5 * self.reg[i + 3] if self.reg[i + 3] >= 0 else self.reg[i] - 2 * abs(self.reg[i + 3])
                             for i in range(3) if i != self.player_idx]
-        self.advantage = (self.space_travelled - 4/5 * self.risk if self.risk >= 0 
-                          else self.space_travelled - 2 * abs(self.risk)) - max(spaces_travelled)
+        self.advantage = ((self.space_travelled - 4/5 * self.risk if self.risk >= 0 
+                          else self.space_travelled - 2 * abs(self.risk)) - max(spaces_travelled)) / self.turns_left
 
 #----------------------------------------------------------------------------------------
 
@@ -281,7 +281,7 @@ def update_game_modifiers(game_modifiers: list[float], score_info: list[int]) ->
     else:
         normalized_points = game_points
     for i, points in enumerate(normalized_points):
-        game_modifiers[i] = 1 / (1 + points) # añadimos randomness a los game modifiers??
+        game_modifiers[i] = 1 / (1 + points)
 
 #----------------------------------------------------------------------------------------
 
