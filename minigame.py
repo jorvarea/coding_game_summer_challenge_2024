@@ -16,6 +16,9 @@ class Puntuation(NamedTuple):
     points: float
     player_idx: int
 
+    def __str__(self) -> str:
+        return f"({self.points}, {self.player_idx})"
+
 #----------------------------------------------------------------------------------------
 class Minigame(ABC):
     """Abstract class representing a generic minigame framework"""
