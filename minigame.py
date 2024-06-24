@@ -153,7 +153,7 @@ class HurdleGame(Minigame):
     def calculate_advantage(self) -> None:
         super().calculate_advantage()
         distance2finish = 30 - self.player_points[0].points
-        self.advantage /= distance2finish
+        self.advantage /= (distance2finish / 2)
 
 #----------------------------------------------------------------------------------------
 
@@ -298,7 +298,7 @@ def decide_move(games: list[Minigame], game_modifiers: list[float]) -> str:
                 total_weights[move] = 0.0
             advantage = game.advantage
             if 0.35 < advantage < 0.65:
-                total_weights[move] += game.weights[move] * 1 / (1 + abs(advantage)**4) * game_modifiers[i]
+                total_weights[move] += game.weights[move] * 1 / (1 + abs(advantage)) * game_modifiers[i]
 
     if DEBUG:
         print(f"Game modifiers: {game_modifiers}", file=sys.stderr, flush=True)
