@@ -51,6 +51,7 @@ class Minigame(ABC):
         self.update_turn_count()
         if DEBUG:
             print(f"Game: {self.name}", file=sys.stderr, flush=True)
+            print(f"Gpu: {self.gpu}", file=sys.stderr, flush=True)
             print(f"Weights: {self.weights}", file=sys.stderr, flush=True)
             print(f"Advantage: {self.advantage}", file=sys.stderr, flush=True)
             print(f"Points: {[(points.player_idx, points.points) for points in self.player_points]}", file=sys.stderr, flush=True)
@@ -187,10 +188,8 @@ class Archery(Minigame):
 
     def normalize_weights(self) -> None: # encontrar funcion suave
         super().normalize_weights()
-        if self.turns_left > 10:
+        if self.turns_left > 8:
             self.weights = { "UP": 0, "LEFT": 0, "DOWN": 0, "RIGHT": 0 }
-        elif self.turns_left >= 6:
-            self.weights = {move: weight / 2 for move, weight in self.weights.items()}
         else:
             self.weights = {move: weight for move, weight in self.weights.items()}
 
